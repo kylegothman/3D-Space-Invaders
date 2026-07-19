@@ -1,0 +1,25 @@
+// JOGL 2.5.x lives on JogAmp's repo, not Maven Central; the *-main
+// artifacts include native libs for Windows and macOS (Intel + Apple Silicon).
+
+plugins {
+    id 'application'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    maven { url = 'https://jogamp.org/deployment/maven/' }
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jogamp.gluegen:gluegen-rt-main:2.5.0'
+    implementation 'org.jogamp.jogl:jogl-all-main:2.5.0'
+}
+
+application {
+    mainClass = 'invaders.Main'
+}
