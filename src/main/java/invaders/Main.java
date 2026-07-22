@@ -5,34 +5,51 @@ import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
 import com.jogamp.opengl.GLProfile;
-import com.jogamp.opengl.awt.GLCanvas;
+//import com.jogamp.opengl.awt.GLCanvas;
+import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import invaders.model.Models;
+import invaders.model.VoxelModel;
+import invaders.ui.Input;
+import invaders.ui.MenuScreen;
+
 /**
- * Setup check: a lit, spinning cube in a perspective scene.
- * If this runs, your environment works. Build the game from here.
+ * Title menu with three spinning invaders behind the text.
  */
 public class Main implements GLEventListener {
 
     private final GLU glu = new GLU();
     private float angle = 0f;
 
+    private final Input input = new Input();
+    private final MenuScreen menu = new MenuScreen();
+    private boolean inMenu = true;
+    private int width = 1024, height = 768;
+
+    private VoxelModel top, mid, bottom;
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2));
-            GLCanvas canvas = new GLCanvas(caps);
-            canvas.addGLEventListener(new Main());
+            //GLCanvas canvas = new GLCanvas(caps);
+            GLJPanel canvas = new GLJPanel(caps);
+            Main app = new Main();
+            canvas.addGLEventListener(app);
+            canvas.addKeyListener(app.input);
+            canvas.setFocusable(true);
 
-            JFrame frame = new JFrame("3D Space Invaders — Team 7");
+            JFrame frame = new JFrame("3D Space Invaders - Team 7");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(1024, 768);
             frame.add(canvas);
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
+            canvas.requestFocusInWindow();
 
             new FPSAnimator(canvas, 60, true).start();
         });
@@ -46,50 +63,56 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_LIGHT0);
         gl.glEnable(GL2.GL_COLOR_MATERIAL);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, new float[]{2f, 4f, 5f, 1f}, 0);
+
+        top = Models.invaderTopFrames()[0];
+        mid = Models.invaderMidFrames()[0];
+        bottom = Models.invaderBottomFrames()[0];
     }
 
     @Override
     public void reshape(GLAutoDrawable drawable, int x, int y, int w, int h) {
         GL2 gl = drawable.getGL().getGL2();
+        this.width = w;
+        this.height = Math.max(h, 1);
         gl.glViewport(0, 0, w, h);
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadIdentity();
-        glu.gluPerspective(60.0, (double) w / Math.max(h, 1), 0.1, 100.0);
+        glu.gluPerspective(60.0, (double) w / this.height, 0.1, 100.0);
         gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
 
     @Override
     public void display(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
-        gl.glClearColor(0.05f, 0.05f, 0.1f, 1f);
+
+        if (inMenu && input.consumeStart()) {
+            inMenu = false;
+        }
+
+        angle += 0.7f;
+
+        gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
         gl.glLoadIdentity();
 
-        glu.gluLookAt(0, 2.5, 6, 0, 0, 0, 0, 1, 0);
+        glu.gluLookAt(0, 0.5, 8.5, 0, 0.3, 0, 0, 1, 0);
 
-        angle += 1f;
-        gl.glRotatef(angle, 0f, 1f, 0f);
-        gl.glColor3f(0.2f, 0.9f, 0.4f);
-        drawCube(gl, 1.5f);
+        drawSpinningInvaders(gl);
+
+        if (inMenu) {
+            menu.renderMenu(width, height);
+        }
     }
 
-    private void drawCube(GL2 gl, float s) {
-        float h = s / 2;
-        float[][] n = {{0,0,1},{0,0,-1},{0,1,0},{0,-1,0},{1,0,0},{-1,0,0}};
-        float[][][] f = {
-            {{-h,-h, h},{ h,-h, h},{ h, h, h},{-h, h, h}},
-            {{ h,-h,-h},{-h,-h,-h},{-h, h,-h},{ h, h,-h}},
-            {{-h, h, h},{ h, h, h},{ h, h,-h},{-h, h,-h}},
-            {{-h,-h,-h},{ h,-h,-h},{ h,-h, h},{-h,-h, h}},
-            {{ h,-h, h},{ h,-h,-h},{ h, h,-h},{ h, h, h}},
-            {{-h,-h,-h},{-h,-h, h},{-h, h, h},{-h, h,-h}},
-        };
-        gl.glBegin(GL2.GL_QUADS);
-        for (int i = 0; i < 6; i++) {
-            gl.glNormal3fv(n[i], 0);
-            for (float[] v : f[i]) gl.glVertex3fv(v, 0);
+    private void drawSpinningInvaders(GL2 gl) {
+        VoxelModel[] show = { top, mid, bottom };
+        for (int i = 0; i < show.length; i++) {
+            gl.glPushMatrix();
+            gl.glTranslatef((i - 1) * 2.6f, -0.2f, 0f);
+            gl.glRotatef(angle, 0f, 1f, 0f);
+            show[i].draw(gl);
+            gl.glPopMatrix();
         }
-        gl.glEnd();
     }
 
     @Override
