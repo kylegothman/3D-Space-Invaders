@@ -18,9 +18,6 @@ import invaders.model.VoxelModel;
 import invaders.ui.Input;
 import invaders.ui.MenuScreen;
 
-/**
- * Title menu with three spinning invaders behind the text.
- */
 public class Main implements GLEventListener {
 
     private final GLU glu = new GLU();
@@ -31,7 +28,11 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = 1024, height = 768;
 
-    private VoxelModel top, mid, bottom;
+    private VoxelModel top, mid, bottom, barrier, ship;
+
+    private static final int ROWS = 5, COLS = 5;
+    private static final float SPACING_X = 1.5f, SPACING_Y = 1.15f, ROW_DEPTH = 0.6f;
+    private static final float GROUND_TILT_DEG = 18f;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -67,41 +68,45 @@ public class Main implements GLEventListener {
         top = Models.invaderTopFrames()[0];
         mid = Models.invaderMidFrames()[0];
         bottom = Models.invaderBottomFrames()[0];
+        barrier = Models.barrier();
+        ship = Models.playerShip();
     }
 
     @Override
     public void reshape(GLAutoDrawable drawable, int x, int y, int w, int h) {
-        GL2 gl = drawable.getGL().getGL2();
         this.width = w;
         this.height = Math.max(h, 1);
-        gl.glViewport(0, 0, w, h);
-        gl.glMatrixMode(GL2.GL_PROJECTION);
-        gl.glLoadIdentity();
-        glu.gluPerspective(60.0, (double) w / this.height, 0.1, 100.0);
-        gl.glMatrixMode(GL2.GL_MODELVIEW);
+        drawable.getGL().getGL2().glViewport(0, 0, w, h);
     }
 
     @Override
     public void display(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
 
-        if (inMenu && input.consumeStart()) {
-            inMenu = false;
-        }
+        if (inMenu && input.consumeStart()) inMenu = false;
+        if (inMenu) angle += 0.7f;
 
-        angle += 0.7f;
-
+        applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
         gl.glLoadIdentity();
 
-        glu.gluLookAt(0, 0.5, 8.5, 0, 0.3, 0, 0, 1, 0);
-
-        drawSpinningInvaders(gl);
-
         if (inMenu) {
+            glu.gluLookAt(0, 0.5, 8.5, 0, 0.3, 0, 0, 1, 0);
+            drawSpinningInvaders(gl);
             menu.renderMenu(width, height);
+        } else {
+            glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
+            drawArrangedScene(gl);
         }
+    }
+
+    private void applyProjection(GL2 gl) {
+        gl.glMatrixMode(GL2.GL_PROJECTION);
+        gl.glLoadIdentity();
+        double fov = inMenu ? 55.0 : 38.0;
+        glu.gluPerspective(fov, (double) width / height, 0.1, 200.0);
+        gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
 
     private void drawSpinningInvaders(GL2 gl) {
@@ -113,6 +118,34 @@ public class Main implements GLEventListener {
             show[i].draw(gl);
             gl.glPopMatrix();
         }
+    }
+
+    private void drawArrangedScene(GL2 gl) {
+        VoxelModel[] rowModel = { top, top, mid, mid, bottom };
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLS; c++) {
+                gl.glPushMatrix();
+                float x = (c - (COLS - 1) * 0.5f) * SPACING_X;
+                float y = 3.2f - r * SPACING_Y;
+                float z = -(ROWS - 1 - r) * ROW_DEPTH;
+                gl.glTranslatef(x, y, z);
+                rowModel[r].draw(gl);
+                gl.glPopMatrix();
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            gl.glPushMatrix();
+            gl.glTranslatef((i - 1.5f) * 2.6f, -2.4f, 1.0f);
+            barrier.draw(gl);
+            gl.glPopMatrix();
+        }
+
+        gl.glPushMatrix();
+        gl.glTranslatef(0f, -3.3f, 1.8f);
+        gl.glRotatef(-GROUND_TILT_DEG, 1f, 0f, 0f);
+        ship.draw(gl);
+        gl.glPopMatrix();
     }
 
     @Override
