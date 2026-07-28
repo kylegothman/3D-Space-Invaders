@@ -1,9 +1,9 @@
 package invaders.ui;
 
-import com.jogamp.opengl.util.awt.TextRenderer;
-
 import java.awt.Font;
 import java.awt.geom.Rectangle2D;
+
+import com.jogamp.opengl.util.awt.TextRenderer;
 
 // Title menu text. TextRenderers are built lazily since they need a live GL context.
 public class MenuScreen {
