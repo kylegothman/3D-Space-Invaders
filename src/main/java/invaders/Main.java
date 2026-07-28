@@ -36,7 +36,7 @@ public class Main implements GLEventListener {
     private final MenuScreen menu = new MenuScreen();
     private final HudRenderer hud = new HudRenderer();
     private boolean inMenu = true;
-    private int width = 1024, height = 768;
+    private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
     private VoxelModel top, mid, bottom, barrier, ship;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
@@ -51,7 +51,6 @@ public class Main implements GLEventListener {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2));
-            //GLCanvas canvas = new GLCanvas(caps);
             GLJPanel canvas = new GLJPanel(caps);
             Main app = new Main();
             canvas.addGLEventListener(app);
@@ -60,13 +59,13 @@ public class Main implements GLEventListener {
 
             JFrame frame = new JFrame("3D Space Invaders - Team 7");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(1024, 768);
+            frame.setSize(Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
             frame.add(canvas);
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
             canvas.requestFocusInWindow();
 
-            new FPSAnimator(canvas, 60, true).start();
+            new FPSAnimator(canvas, Config.TARGET_FPS, true).start();
         });
     }
 
@@ -129,7 +128,7 @@ public class Main implements GLEventListener {
             long now = System.nanoTime();
             float dt = (now - lastFrameNanos) / 1_000_000_000f;
             lastFrameNanos = now;
-            gameLogic.update(dt);
+            gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
 
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
             drawGameplay(gl);
@@ -177,14 +176,14 @@ public class Main implements GLEventListener {
     // Bunker lives aren't part of the voxel model -- draw each alive
     // bunker's remaining-lives number as text anchored just above it.
     private void drawBunkerLivesLabels() {
-            bunkerLabelRenderer.begin3DRendering();
-            bunkerLabelRenderer.setColor(Color.WHITE);
-            for (Bunker b : gameLogic.bunkers) {
-                if (!b.alive) continue;
-                bunkerLabelRenderer.draw3D(b.livesLabel, b.x, b.y - b.halfHeight - 0.5f, b.z, 0.01f);
-            }
-            bunkerLabelRenderer.end3DRendering();
+        bunkerLabelRenderer.begin3DRendering();
+        bunkerLabelRenderer.setColor(Color.WHITE);
+        for (Bunker b : gameLogic.bunkers) {
+            if (!b.alive) continue;
+            bunkerLabelRenderer.draw3D(b.livesLabel, b.x, b.y - b.halfHeight - 0.5f, b.z, 0.01f);
         }
+        bunkerLabelRenderer.end3DRendering();
+    }
 
     @Override
     public void dispose(GLAutoDrawable drawable) { }
