@@ -29,6 +29,12 @@ import invaders.ui.MenuScreen;
 
 public class Main implements GLEventListener {
 
+    // Was going to live in a separate Config class; kept here as local
+    // constants since nothing else needs them yet.
+    private static final int WINDOW_WIDTH = 1024;
+    private static final int WINDOW_HEIGHT = 768;
+    private static final int TARGET_FPS = 60;
+
     private final GLU glu = new GLU();
     private float angle = 0f;
 
@@ -36,7 +42,7 @@ public class Main implements GLEventListener {
     private final MenuScreen menu = new MenuScreen();
     private final HudRenderer hud = new HudRenderer();
     private boolean inMenu = true;
-    private int width = 1024, height = 768;
+    private int width = WINDOW_WIDTH, height = WINDOW_HEIGHT;
 
     private VoxelModel top, mid, bottom, barrier, ship;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
@@ -60,13 +66,13 @@ public class Main implements GLEventListener {
 
             JFrame frame = new JFrame("3D Space Invaders - Team 7");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(1024, 768);
+            frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
             frame.add(canvas);
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
             canvas.requestFocusInWindow();
 
-            new FPSAnimator(canvas, 60, true).start();
+            new FPSAnimator(canvas, TARGET_FPS, true).start();
         });
     }
 
@@ -129,7 +135,7 @@ public class Main implements GLEventListener {
             long now = System.nanoTime();
             float dt = (now - lastFrameNanos) / 1_000_000_000f;
             lastFrameNanos = now;
-            gameLogic.update(dt);
+            gameLogic.update(Math.min(dt, GameLogic.MAX_ACCUMULATED_DT));
 
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
             drawGameplay(gl);

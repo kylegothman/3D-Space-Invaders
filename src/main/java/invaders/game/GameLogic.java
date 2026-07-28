@@ -20,6 +20,11 @@ public class GameLogic {
     private static final float PROJECTILE_Z_MIN = -20f;
     private static final float PROJECTILE_Z_MAX = 20f;
 
+    // Upper bound on buffered frame time. Public so callers (e.g. Main) can
+    // clamp the raw frame dt to the same value before it ever reaches
+    // update(), instead of keeping a second hardcoded copy of this number.
+    public static final float MAX_ACCUMULATED_DT = 0.25f;
+
     // Bunkers sit between the formation's danger line and the player, so
     // they naturally get bypassed once enemies cross ENEMY_DANGER_Z.
     private static final int BUNKER_COUNT = 4;
@@ -47,7 +52,7 @@ public class GameLogic {
         return new EnemyFormation(
                 /* rows */ 4, /* cols */ 8,
                 /* spacingX */ 2f, /* spacingZ */ 1.5f,
-                /* originX */ -5.25f, /* originY */ 0f, /* originZ */ -12f,
+                /* originX */ -7f, /* originY */ 0f, /* originZ */ -12f,
                 /* fieldHalfWidth */ 9f,
                 /* baseSpeed */ 1.5f,
                 /* dropDistance */ 0.6f);
@@ -72,9 +77,9 @@ public class GameLogic {
         }
 
         accumulator += frameDeltaSeconds;
-        if (accumulator > 0.25f) accumulator = 0.25f;
+        if (accumulator > MAX_ACCUMULATED_DT) accumulator = MAX_ACCUMULATED_DT;
 
-        while (accumulator >= FIXED_DT) {
+        while (accumulator >= FIXED_DT && score.getState() == ScoreManager.State.PLAYING) {
             step(FIXED_DT);
             accumulator -= FIXED_DT;
         }

@@ -33,6 +33,7 @@ public class HudRenderer {
 
     public void renderHud(GameLogic logic, int w, int h) {
         drawLives(logic.player.lives, w, h);
+        drawScore(logic.score.getScore(), w, h);
 
         if (logic.isGameOver()) {
             drawRestartPrompt(logic, w, h);
@@ -48,6 +49,16 @@ public class HudRenderer {
         tr.beginRendering(w, h);
         tr.setColor(LIFE_R, LIFE_G, LIFE_B, 1f);
         tr.draw(text, 20, h - 40);
+        tr.endRendering();
+    }
+
+    private void drawScore(int score, int w, int h) {
+        String text = "SCORE  " + score;
+
+        TextRenderer tr = hud();
+        tr.beginRendering(w, h);
+        tr.setColor(1f, 1f, 1f, 1f);
+        tr.draw(text, 20, h - 66);
         tr.endRendering();
     }
 
