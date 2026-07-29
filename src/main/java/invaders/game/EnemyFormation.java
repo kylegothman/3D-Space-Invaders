@@ -96,7 +96,8 @@ public class EnemyFormation {
         if (fireTimer <= 0) {
             Enemy shooter = pickRandomShooter();
             if (shooter != null) {
-                shots.add(Projectile.enemyShot(shooter.x, shooter.y, shooter.z, shooter.type));
+                float jitterX = (rng.nextFloat() * 2f - 1f) * shotXJitter;
+                shots.add(Projectile.enemyShot(shooter.x + jitterX, shooter.y, shooter.z, shooter.type));
             }
             fireTimer = nextFireDelay();
         }
