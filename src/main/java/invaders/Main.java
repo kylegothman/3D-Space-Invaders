@@ -38,8 +38,19 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel top, mid, bottom, barrier, ship;
+    private VoxelModel barrier, ship, shipExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
+
+    // Each enemy bolt shape alternates between two poses instead of a fixed model.
+    private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
+    private int boltFrame = 0;
+    private int boltTick = 0;
+    private static final int BOLT_FRAME_INTERVAL = 6;
+
+    private VoxelModel[] topFrames, midFrames, bottomFrames;
+    private int flapFrame = 0;
+    private int flapTick = 0;
+    private static final int FLAP_FRAME_INTERVAL = 20;
 
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
@@ -78,21 +89,20 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_COLOR_MATERIAL);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, new float[]{2f, 4f, 5f, 1f}, 0);
 
-        top = Models.invaderTopFrames()[0];
-        mid = Models.invaderMidFrames()[0];
-        bottom = Models.invaderBottomFrames()[0];
+        topFrames = Models.invaderTopFrames();
+        midFrames = Models.invaderMidFrames();
+        bottomFrames = Models.invaderBottomFrames();
         barrier = Models.barrier();
         ship = Models.playerShip();
+        shipExplosion = Models.shipExplosion();
 
         // Map Entity.modelId -> renderable model. These strings must match
         // what Enemy/Player/Projectile set as modelId in the game package.
-        modelsById.put("enemy_elite", top);
-        modelsById.put("enemy_scout", mid);
-        modelsById.put("enemy_grunt", bottom);
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
-        modelsById.put("enemy_bolt", Models.alienBoltCross()[0]);
         modelsById.put("bunker", barrier);
+        crossBoltFrames = Models.alienBoltCross();
+        zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
         bunkerLabelRenderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 36));
@@ -115,6 +125,11 @@ public class Main implements GLEventListener {
         }
         if (inMenu) angle += 0.7f;
 
+        if (++flapTick >= FLAP_FRAME_INTERVAL) {
+            flapTick = 0;
+            flapFrame = 1 - flapFrame;
+        }
+
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
@@ -130,6 +145,11 @@ public class Main implements GLEventListener {
             lastFrameNanos = now;
             gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
 
+            if (++boltTick >= BOLT_FRAME_INTERVAL) {
+                boltTick = 0;
+                boltFrame = 1 - boltFrame;
+            }
+
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
             drawGameplay(gl);
 
@@ -140,13 +160,13 @@ public class Main implements GLEventListener {
     private void applyProjection(GL2 gl) {
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadIdentity();
-        double fov = inMenu ? 55.0 : 38.0;
+        double fov = inMenu ? 55.0 : 48.0;
         glu.gluPerspective(fov, (double) width / height, 0.1, 200.0);
         gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
 
     private void drawSpinningInvaders(GL2 gl) {
-        VoxelModel[] show = { top, mid, bottom };
+        VoxelModel[] show = { topFrames[flapFrame], midFrames[flapFrame], bottomFrames[flapFrame] };
         for (int i = 0; i < show.length; i++) {
             gl.glPushMatrix();
             gl.glTranslatef((i - 1) * 2.6f, -0.2f, 0f);
@@ -156,16 +176,31 @@ public class Main implements GLEventListener {
         }
     }
 
-    // Live gameplay: draw whatever GameLogic reports as currently renderable
-    // (including bunkers, which are real, damageable entities -- not the
-    // static decoration this used to draw), matched to a voxel model via
-    // Entity.modelId.
     private void drawGameplay(GL2 gl) {
         for (Entity e : gameLogic.getRenderables()) {
-            VoxelModel model = modelsById.get(e.modelId);
+            boolean isBolt = e.modelId.equals("enemy_bolt_cross") || e.modelId.equals("enemy_bolt_zigzag")
+                    || e.modelId.equals("player_bolt");
+            VoxelModel model;
+            if (e.modelId.equals("enemy_bolt_cross")) {
+                model = crossBoltFrames[boltFrame];
+            } else if (e.modelId.equals("enemy_bolt_zigzag")) {
+                model = zigzagBoltFrames[boltFrame];
+            } else if (e.modelId.equals("enemy_elite")) {
+                model = topFrames[flapFrame];
+            } else if (e.modelId.equals("enemy_scout")) {
+                model = midFrames[flapFrame];
+            } else if (e.modelId.equals("enemy_grunt")) {
+                model = bottomFrames[flapFrame];
+            } else if (e.modelId.equals("player_ship") && !e.alive) {
+                model = shipExplosion;
+            } else {
+                model = modelsById.get(e.modelId);
+            }
             if (model == null) continue;
             gl.glPushMatrix();
             gl.glTranslatef(e.x, e.y, e.z);
+            if (isBolt) gl.glRotatef(90f, 1f, 0f, 0f);
+            if (model == ship) gl.glRotatef(-45f, 1f, 0f, 0f);
             model.draw(gl);
             gl.glPopMatrix();
         }
@@ -173,8 +208,8 @@ public class Main implements GLEventListener {
         drawBunkerLivesLabels();
     }
 
-    // Bunker lives aren't part of the voxel model -- draw each alive
-    // bunker's remaining-lives number as text anchored just above it.
+    //draw each alive bunker's remaining-lives
+    //number as text anchored just above it.
     private void drawBunkerLivesLabels() {
         bunkerLabelRenderer.begin3DRendering();
         bunkerLabelRenderer.setColor(Color.WHITE);

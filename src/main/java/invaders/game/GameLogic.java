@@ -125,7 +125,7 @@ public class GameLogic {
 
     public List<Entity> getRenderables() {
         List<Entity> all = new ArrayList<>();
-        if (player.alive) all.add(player);
+        all.add(player); // rendered even when dead, so Main can show wreckage in its place
         for (Enemy e : formation.enemies) if (e.alive) all.add(e);
         for (Bunker b : bunkers) if (b.alive) all.add(b);
         for (Projectile p : projectiles) if (p.alive) all.add(p);
