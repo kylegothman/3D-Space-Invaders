@@ -45,7 +45,7 @@ public class Main implements GLEventListener {
     private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
     private int boltFrame = 0;
     private int boltTick = 0;
-    private static final int BOLT_FRAME_INTERVAL = 6; // display() calls per pose swap
+    private static final int BOLT_FRAME_INTERVAL = 6;
 
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
@@ -195,8 +195,8 @@ public class Main implements GLEventListener {
         drawBunkerLivesLabels();
     }
 
-    // Bunker lives aren't part of the voxel model - draw each alive
-    // bunker's remaining-lives number as text anchored just above it.
+    //draw each alive bunker's remaining-lives
+    //number as text anchored just above it.
     private void drawBunkerLivesLabels() {
         bunkerLabelRenderer.begin3DRendering();
         bunkerLabelRenderer.setColor(Color.WHITE);
