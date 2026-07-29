@@ -38,8 +38,14 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel top, mid, bottom, barrier, ship;
+    private VoxelModel top, mid, bottom, barrier, ship, shipExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
+
+    // Each enemy bolt shape alternates between two poses instead of a fixed model.
+    private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
+    private int boltFrame = 0;
+    private int boltTick = 0;
+    private static final int BOLT_FRAME_INTERVAL = 6; // display() calls per pose swap
 
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
@@ -83,6 +89,7 @@ public class Main implements GLEventListener {
         bottom = Models.invaderBottomFrames()[0];
         barrier = Models.barrier();
         ship = Models.playerShip();
+        shipExplosion = Models.shipExplosion();
 
         // Map Entity.modelId -> renderable model. These strings must match
         // what Enemy/Player/Projectile set as modelId in the game package.
@@ -91,8 +98,9 @@ public class Main implements GLEventListener {
         modelsById.put("enemy_grunt", bottom);
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
-        modelsById.put("enemy_bolt", Models.alienBoltCross()[0]);
         modelsById.put("bunker", barrier);
+        crossBoltFrames = Models.alienBoltCross();
+        zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
         bunkerLabelRenderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 36));
@@ -130,6 +138,11 @@ public class Main implements GLEventListener {
             lastFrameNanos = now;
             gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
 
+            if (++boltTick >= BOLT_FRAME_INTERVAL) {
+                boltTick = 0;
+                boltFrame = 1 - boltFrame;
+            }
+
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
             drawGameplay(gl);
 
@@ -140,7 +153,7 @@ public class Main implements GLEventListener {
     private void applyProjection(GL2 gl) {
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadIdentity();
-        double fov = inMenu ? 55.0 : 38.0;
+        double fov = inMenu ? 55.0 : 48.0;
         glu.gluPerspective(fov, (double) width / height, 0.1, 200.0);
         gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
@@ -156,16 +169,25 @@ public class Main implements GLEventListener {
         }
     }
 
-    // Live gameplay: draw whatever GameLogic reports as currently renderable
-    // (including bunkers, which are real, damageable entities -- not the
-    // static decoration this used to draw), matched to a voxel model via
-    // Entity.modelId.
     private void drawGameplay(GL2 gl) {
         for (Entity e : gameLogic.getRenderables()) {
-            VoxelModel model = modelsById.get(e.modelId);
+            boolean isBolt = e.modelId.equals("enemy_bolt_cross") || e.modelId.equals("enemy_bolt_zigzag")
+                    || e.modelId.equals("player_bolt");
+            VoxelModel model;
+            if (e.modelId.equals("enemy_bolt_cross")) {
+                model = crossBoltFrames[boltFrame];
+            } else if (e.modelId.equals("enemy_bolt_zigzag")) {
+                model = zigzagBoltFrames[boltFrame];
+            } else if (e.modelId.equals("player_ship") && !e.alive) {
+                model = shipExplosion;
+            } else {
+                model = modelsById.get(e.modelId);
+            }
             if (model == null) continue;
             gl.glPushMatrix();
             gl.glTranslatef(e.x, e.y, e.z);
+            if (isBolt) gl.glRotatef(90f, 1f, 0f, 0f);
+            if (model == ship) gl.glRotatef(-45f, 1f, 0f, 0f);
             model.draw(gl);
             gl.glPopMatrix();
         }
@@ -173,7 +195,7 @@ public class Main implements GLEventListener {
         drawBunkerLivesLabels();
     }
 
-    // Bunker lives aren't part of the voxel model -- draw each alive
+    // Bunker lives aren't part of the voxel model - draw each alive
     // bunker's remaining-lives number as text anchored just above it.
     private void drawBunkerLivesLabels() {
         bunkerLabelRenderer.begin3DRendering();
