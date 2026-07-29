@@ -15,8 +15,14 @@ public class EnemyFormation {
     private final Random rng = new Random();
 
     private float fireTimer = 0f;
-    private final float fireIntervalMin = 0.4f;
-    private final float fireIntervalMax = 1.2f;
+    private final float fireIntervalMin = 0.36f;  // was 0.4f  (10% faster)
+    private final float fireIntervalMax = 1.08f;  // was 1.2f  (10% faster)
+
+    // How far (world units) a shot's spawn x can drift from the shooter's
+    // exact x. Without this, every shot from a given lane lands on the same
+    // barrier column, punches one hole, and every later shot just passes
+    // through that hole instead of spreading damage across the bunker.
+    private final float shotXJitter = 0.35f;
     
     public EnemyFormation(int rows, int cols, float spacingX, float spacingZ,
                            float originX, float originY, float originZ,
@@ -83,7 +89,8 @@ public class EnemyFormation {
         if (fireTimer <= 0) {
             Enemy shooter = pickRandomShooter();
             if (shooter != null) {
-                shots.add(Projectile.enemyShot(shooter.x, shooter.y, shooter.z));
+                float jitterX = (rng.nextFloat() * 2f - 1f) * shotXJitter;
+                shots.add(Projectile.enemyShot(shooter.x + jitterX, shooter.y, shooter.z, shooter.type));
             }
             fireTimer = nextFireDelay();
         }

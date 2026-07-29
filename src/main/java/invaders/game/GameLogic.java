@@ -9,8 +9,6 @@ public class GameLogic {
         boolean isLeftPressed();
         boolean isRightPressed();
         boolean isFirePressed();
-        // True while the player is pressing whatever "restart" action the UI exposes
-        // (e.g. a button press or a specific key) after a game-over.
         boolean isRestartPressed();
     }
 
@@ -20,13 +18,8 @@ public class GameLogic {
     private static final float PROJECTILE_Z_MIN = -20f;
     private static final float PROJECTILE_Z_MAX = 20f;
 
-    // Upper bound on buffered frame time. Public so callers (e.g. Main) can
-    // clamp the raw frame dt to the same value before it ever reaches
-    // update(), instead of keeping a second hardcoded copy of this number.
     public static final float MAX_ACCUMULATED_DT = 0.25f;
 
-    // Bunkers sit between the formation's danger line and the player, so
-    // they naturally get bypassed once enemies cross ENEMY_DANGER_Z.
     private static final int BUNKER_COUNT = 4;
     private static final float BUNKER_Z = 4.5f;
     private static final float BUNKER_SPACING_X = 3.0f; // gaps between bunkers
@@ -69,7 +62,7 @@ public class GameLogic {
     public void update(float frameDeltaSeconds) {
         if (score.getState() != ScoreManager.State.PLAYING) {
             // Game is over (won or lost, e.g. player was hit 3 times and ran
-            // out of lives) -- offer the player the option to restart.
+            // out of lives) - offer the player the option to restart.
             if (input.isRestartPressed()) {
                 restart();
             }
