@@ -15,7 +15,6 @@ import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
-import invaders.game.Bunker;
 import invaders.game.Entity;
 import invaders.game.GameLogic;
 import invaders.model.Models;
@@ -35,7 +34,7 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel ship, shipExplosion;
+    private VoxelModel barrier, ship, shipExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
     // Each enemy bolt shape alternates between two poses instead of a fixed model.
@@ -85,11 +84,15 @@ public class Main implements GLEventListener {
         topFrames = Models.invaderTopFrames();
         midFrames = Models.invaderMidFrames();
         bottomFrames = Models.invaderBottomFrames();
+        barrier = Models.barrier();
         ship = Models.playerShip();
         shipExplosion = Models.shipExplosion();
 
+        // Map Entity.modelId -> renderable model. These strings must match
+        // what Enemy/Player/Projectile set as modelId in the game package.
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
+        modelsById.put("bunker", barrier);
         crossBoltFrames = Models.alienBoltCross();
         zigzagBoltFrames = Models.alienBoltZigzag();
 
@@ -181,8 +184,6 @@ public class Main implements GLEventListener {
                 model = bottomFrames[flapFrame];
             } else if (e.modelId.equals("player_ship") && !e.alive) {
                 model = shipExplosion;
-            } else if (e instanceof Bunker b) {
-                model = b.model;
             } else {
                 model = modelsById.get(e.modelId);
             }

@@ -12,10 +12,6 @@ public class Bunker extends Entity {
 
     private static final Random rng = new Random();
 
-    // Each bunker owns its own model/grid so damage to one bunker never
-    // affects any other bunker's shape.
-    public final VoxelModel model;
-
     public Bunker(float x, float y, float z) {
         super(x, y, z);
         this.modelId = "bunker";
@@ -40,6 +36,5 @@ public class Bunker extends Entity {
         if (model.isFullyDestroyed()) {
             alive = false;
         }
-        return true;
     }
 }

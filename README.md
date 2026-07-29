@@ -12,21 +12,19 @@ cd 3D-Space-Invaders
 ./gradlew run        # Windows: gradlew.bat run
 ```
 
-You should see the title menu with three spinning invaders. Press ENTER to view the arranged scene (formation, barriers, player ship).
+You should see the title menu with three spinning invaders. Press ENTER to play: clear all 3 waves to win, each wave starts faster than the last.
 
-Controls so far: ENTER starts. Planned: ARROWS / A D to move, SPACE to fire.
+Controls: ARROWS / A D move, SPACE fires, ENTER starts and restarts.
 
 IDE: open the project folder as a Gradle project (IntelliJ / Eclipse / VS Code all support this). Don't commit IDE config files — .gitignore handles it.
 
 ## Code layout
 
-- `src/main/java/invaders/Main.java` — window bootstrap, game state dispatch, camera, scene draw
-- `src/main/java/invaders/GameState.java` — MENU / PLAYING / GAME_OVER / WIN
-- `src/main/java/invaders/Config.java` — shared tuning constants; add new magic numbers here
+- `src/main/java/invaders/Main.java` — window bootstrap, camera, rendering, model/animation lookup
+- `src/main/java/invaders/Config.java` — window and frame-rate constants
+- `src/main/java/invaders/game/` — all gameplay: entities, formation, collisions, waves, scoring (`GameLogic.update` is the entry point)
 - `src/main/java/invaders/model/` — voxel bitmap models (invaders, ship, barriers, bolts, UFO, explosion)
-- `src/main/java/invaders/ui/` — keyboard input and menu text
-
-Gameplay hooks: `Main.updatePlaying(dt)` is the per-frame update entry point (dt is seconds since last frame, capped). Rendering for the in-game scene lives in `drawArrangedScene`.
+- `src/main/java/invaders/ui/` — keyboard input, menu text, HUD
 
 ## Git workflow
 

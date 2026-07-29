@@ -12,6 +12,7 @@ public class EnemyFormation {
     private final float dropDistance;
     private final float baseSpeed;
     private float currentDirection = 1f; // 1 = right, -1 = left
+    private int dropCount = 0;
     private final Random rng = new Random();
 
     private float fireTimer = 0f;
@@ -48,15 +49,20 @@ public class EnemyFormation {
         return Enemy.Type.GRUNT;
     }
 
-    // Speed scales up as the formation thins out -- classic difficulty ramp.
+    // Speed scales up as the formation thins out and as it advances toward
+    // the player -- classic difficulty ramp.
     private float currentSpeed() {
         int aliveCount = 0;
         for (Enemy e : enemies) if (e.alive) aliveCount++;
         int total = enemies.size();
-        if (total == 0) return baseSpeed;
-        float ratio = (float) aliveCount / total;
-        // as ratio -> 0, speed multiplier grows up to ~3x
-        return baseSpeed * (1f + 2f * (1f - ratio));
+        float countMultiplier = 1f;
+        if (total > 0) {
+            float ratio = (float) aliveCount / total;
+            // as ratio -> 0, this multiplier grows up to ~3x
+            countMultiplier = 1f + 2f * (1f - ratio);
+        }
+        float advanceMultiplier = 1f + 0.15f * (dropCount / 2);
+        return baseSpeed * countMultiplier * advanceMultiplier;
     }
 
     public List<Projectile> update(float dt) {
@@ -75,6 +81,7 @@ public class EnemyFormation {
 
         if (hitEdge) {
             currentDirection *= -1f;
+            dropCount++;
             for (Enemy e : enemies) {
                 if (e.alive) e.z += dropDistance;
             }
@@ -89,8 +96,7 @@ public class EnemyFormation {
         if (fireTimer <= 0) {
             Enemy shooter = pickRandomShooter();
             if (shooter != null) {
-                float jitterX = (rng.nextFloat() * 2f - 1f) * shotXJitter;
-                shots.add(Projectile.enemyShot(shooter.x + jitterX, shooter.y, shooter.z, shooter.type));
+                shots.add(Projectile.enemyShot(shooter.x, shooter.y, shooter.z, shooter.type));
             }
             fireTimer = nextFireDelay();
         }

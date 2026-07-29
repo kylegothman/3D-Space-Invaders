@@ -24,6 +24,7 @@ public class Projectile extends Entity {
         return p;
     }
 
+    // Elites fire the cross bolt; scouts and grunts fire the zigzag bolt.
     public static Projectile enemyShot(float x, float y, float z, Enemy.Type shooterType) {
         String modelId = shooterType == Enemy.Type.ELITE ? "enemy_bolt_cross" : "enemy_bolt_zigzag";
         Projectile p = new Projectile(x, y, z, Owner.ENEMY, modelId);
