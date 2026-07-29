@@ -1,5 +1,13 @@
 package invaders;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+
 import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
@@ -8,12 +16,14 @@ import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
+import com.jogamp.opengl.util.awt.TextRenderer;
 
-import javax.swing.JFrame;
-import javax.swing.SwingUtilities;
-
+import invaders.game.Bunker;
+import invaders.game.Entity;
+import invaders.game.GameLogic;
 import invaders.model.Models;
 import invaders.model.VoxelModel;
+import invaders.ui.HudRenderer;
 import invaders.ui.Input;
 import invaders.ui.MenuScreen;
 
@@ -24,11 +34,19 @@ public class Main implements GLEventListener {
 
     private final Input input = new Input();
     private final MenuScreen menu = new MenuScreen();
-    private GameState state = GameState.MENU;
+    private final HudRenderer hud = new HudRenderer();
+    private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
-    private long lastFrameNanos;
 
     private VoxelModel top, mid, bottom, barrier, ship;
+    private final Map<String, VoxelModel> modelsById = new HashMap<>();
+
+    private GameLogic gameLogic;
+    private long lastFrameNanos = 0L;
+
+    // Separate from HudRenderer -- this draws small labels anchored to a
+    // 3D world position (bunker lives), not the fixed screen-space HUD.
+    private TextRenderer bunkerLabelRenderer;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -66,7 +84,18 @@ public class Main implements GLEventListener {
         barrier = Models.barrier();
         ship = Models.playerShip();
 
-        lastFrameNanos = System.nanoTime();
+        // Map Entity.modelId -> renderable model. These strings must match
+        // what Enemy/Player/Projectile set as modelId in the game package.
+        modelsById.put("enemy_elite", top);
+        modelsById.put("enemy_scout", mid);
+        modelsById.put("enemy_grunt", bottom);
+        modelsById.put("player_ship", ship);
+        modelsById.put("player_bolt", Models.playerBolt());
+        modelsById.put("enemy_bolt", Models.alienBoltCross()[0]);
+        modelsById.put("bunker", barrier);
+
+        gameLogic = new GameLogic(input);
+        bunkerLabelRenderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 36));
     }
 
     @Override
@@ -80,60 +109,38 @@ public class Main implements GLEventListener {
     public void display(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
 
-        update(nextFrameDt());
-        render(gl);
-    }
-
-    private float nextFrameDt() {
-        long now = System.nanoTime();
-        float dt = (now - lastFrameNanos) / 1_000_000_000f;
-        lastFrameNanos = now;
-        return Math.min(dt, Config.MAX_FRAME_DT);
-    }
-
-    private void update(float dt) {
-        switch (state) {
-            case MENU -> updateMenu(dt);
-            case PLAYING -> updatePlaying(dt);
-            case GAME_OVER, WIN -> updateEnded(dt);
+        if (inMenu && input.consumeStart()) {
+            inMenu = false;
+            lastFrameNanos = System.nanoTime(); // avoid a huge dt on the first game frame
         }
-    }
+        if (inMenu) angle += 0.7f;
 
-    private void updateMenu(float dt) {
-        if (input.consumeStart()) {
-            state = GameState.PLAYING;
-            return;
-        }
-        angle += Config.MENU_SPIN_DEG_PER_SEC * dt;
-    }
-
-    private void updatePlaying(float dt) {
-    }
-
-    private void updateEnded(float dt) {
-        if (input.consumeStart()) state = GameState.MENU;
-    }
-
-    private void render(GL2 gl) {
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
         gl.glLoadIdentity();
 
-        if (state == GameState.MENU) {
+        if (inMenu) {
             glu.gluLookAt(0, 0.5, 8.5, 0, 0.3, 0, 0, 1, 0);
             drawSpinningInvaders(gl);
             menu.renderMenu(width, height);
         } else {
+            long now = System.nanoTime();
+            float dt = (now - lastFrameNanos) / 1_000_000_000f;
+            lastFrameNanos = now;
+            gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
+
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
-            drawArrangedScene(gl);
+            drawGameplay(gl);
+
+            hud.renderHud(gameLogic, width, height);
         }
     }
 
     private void applyProjection(GL2 gl) {
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadIdentity();
-        double fov = state == GameState.MENU ? 55.0 : 38.0;
+        double fov = inMenu ? 55.0 : 38.0;
         glu.gluPerspective(fov, (double) width / height, 0.1, 200.0);
         gl.glMatrixMode(GL2.GL_MODELVIEW);
     }
@@ -149,32 +156,33 @@ public class Main implements GLEventListener {
         }
     }
 
-    private void drawArrangedScene(GL2 gl) {
-        VoxelModel[] rowModel = { top, top, mid, mid, bottom };
-        for (int r = 0; r < Config.ROWS; r++) {
-            for (int c = 0; c < Config.COLS; c++) {
-                gl.glPushMatrix();
-                float x = (c - (Config.COLS - 1) * 0.5f) * Config.SPACING_X;
-                float y = 3.2f - r * Config.SPACING_Y;
-                float z = -(Config.ROWS - 1 - r) * Config.ROW_DEPTH;
-                gl.glTranslatef(x, y, z);
-                rowModel[r].draw(gl);
-                gl.glPopMatrix();
-            }
-        }
-
-        for (int i = 0; i < 4; i++) {
+    // Live gameplay: draw whatever GameLogic reports as currently renderable
+    // (including bunkers, which are real, damageable entities -- not the
+    // static decoration this used to draw), matched to a voxel model via
+    // Entity.modelId.
+    private void drawGameplay(GL2 gl) {
+        for (Entity e : gameLogic.getRenderables()) {
+            VoxelModel model = modelsById.get(e.modelId);
+            if (model == null) continue;
             gl.glPushMatrix();
-            gl.glTranslatef((i - 1.5f) * 2.6f, -2.4f, 1.0f);
-            barrier.draw(gl);
+            gl.glTranslatef(e.x, e.y, e.z);
+            model.draw(gl);
             gl.glPopMatrix();
         }
 
-        gl.glPushMatrix();
-        gl.glTranslatef(0f, -3.3f, 1.8f);
-        gl.glRotatef(-Config.GROUND_TILT_DEG, 1f, 0f, 0f);
-        ship.draw(gl);
-        gl.glPopMatrix();
+        drawBunkerLivesLabels();
+    }
+
+    // Bunker lives aren't part of the voxel model -- draw each alive
+    // bunker's remaining-lives number as text anchored just above it.
+    private void drawBunkerLivesLabels() {
+        bunkerLabelRenderer.begin3DRendering();
+        bunkerLabelRenderer.setColor(Color.WHITE);
+        for (Bunker b : gameLogic.bunkers) {
+            if (!b.alive) continue;
+            bunkerLabelRenderer.draw3D(b.livesLabel, b.x, b.y - b.halfHeight - 0.5f, b.z, 0.01f);
+        }
+        bunkerLabelRenderer.end3DRendering();
     }
 
     @Override
