@@ -50,7 +50,10 @@ public class EnemyFormation {
     }
 
     // Speed scales up as the formation thins out and as it advances toward
-    // the player -- classic difficulty ramp.
+    // the player -- classic difficulty ramp. Capped so it stays playable
+    // even in a long, punishing wave.
+    private static final float MAX_SPEED_MULTIPLIER = 3.0f;
+
     private float currentSpeed() {
         int aliveCount = 0;
         for (Enemy e : enemies) if (e.alive) aliveCount++;
@@ -61,8 +64,14 @@ public class EnemyFormation {
             // as ratio -> 0, this multiplier grows up to ~3x
             countMultiplier = 1f + 2f * (1f - ratio);
         }
-        float advanceMultiplier = 1f + 0.15f * (dropCount / 2);
-        return baseSpeed * countMultiplier * advanceMultiplier;
+        // Give the formation a few free bounces before the advance ramp
+        // kicks in, so wave 1 doesn't speed up immediately just from
+        // hitting the field edges early.
+        int rampedDrops = Math.max(0, dropCount - 3);
+        float advanceMultiplier = 1f + 0.08f * (rampedDrops / 2);
+
+        float totalMultiplier = Math.min(countMultiplier * advanceMultiplier, MAX_SPEED_MULTIPLIER);
+        return baseSpeed * totalMultiplier;
     }
 
     public List<Projectile> update(float dt) {
