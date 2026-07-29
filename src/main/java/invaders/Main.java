@@ -143,7 +143,7 @@ public class Main implements GLEventListener {
             long now = System.nanoTime();
             float dt = (now - lastFrameNanos) / 1_000_000_000f;
             lastFrameNanos = now;
-            gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
+            gameLogic.update(Math.min(dt, GameLogic.MAX_ACCUMULATED_DT));
 
             if (++boltTick >= BOLT_FRAME_INTERVAL) {
                 boltTick = 0;

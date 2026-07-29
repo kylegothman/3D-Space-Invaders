@@ -12,6 +12,8 @@ public class HudRenderer {
 
     private TextRenderer hud, big, mid;
 
+    private static final int MARGIN = 20;
+
     private static final float LIFE_R = 0.90f, LIFE_G = 0.25f, LIFE_B = 0.25f;
     private static final float WIN_R  = 0.20f, WIN_G  = 0.90f, WIN_B  = 0.40f;
     private static final float LOSE_R = 0.95f, LOSE_G = 0.30f, LOSE_B = 0.30f;
@@ -32,34 +34,42 @@ public class HudRenderer {
     }
 
     public void renderHud(GameLogic logic, int w, int h) {
-        drawLives(logic.player.lives, w, h);
-        drawScore(logic.score.getScore(), w, h);
+        String scoreText = "SCORE  " + logic.score.getScore();
+        String waveText = "WAVE " + logic.getWave() + "/" + GameLogic.MAX_WAVES;
+        String livesText = livesText(logic.player.lives);
+
+        TextRenderer tr = hud();
+        int baseline = topBaseline(tr, scoreText, h);
+
+        tr.beginRendering(w, h);
+        tr.setColor(1f, 1f, 1f, 1f);
+        tr.draw(scoreText, MARGIN, baseline);
+        tr.draw(waveText, centeredX(tr, waveText, w), baseline);
+        tr.setColor(LIFE_R, LIFE_G, LIFE_B, 1f);
+        tr.draw(livesText, rightAlignedX(tr, livesText, w), baseline);
+        tr.endRendering();
 
         if (logic.isGameOver()) {
             drawRestartPrompt(logic, w, h);
         }
     }
 
-    private void drawLives(int lives, int w, int h) {
+    private String livesText(int lives) {
         StringBuilder pips = new StringBuilder();
-        for (int i = 0; i < lives; i++) pips.append("\u25B2 "); // one triangle "ship" per life
-        String text = "LIVES  " + pips.toString().trim();
-
-        TextRenderer tr = hud();
-        tr.beginRendering(w, h);
-        tr.setColor(LIFE_R, LIFE_G, LIFE_B, 1f);
-        tr.draw(text, 20, h - 40);
-        tr.endRendering();
+        for (int i = 0; i < lives; i++) pips.append("\u25B2 ");
+        return ("LIVES  " + pips.toString().trim()).trim();
     }
 
-    private void drawScore(int score, int w, int h) {
-        String text = "SCORE  " + score;
+    private int topBaseline(TextRenderer tr, String sample, int h) {
+        return h - MARGIN - (int) tr.getBounds(sample).getHeight();
+    }
 
-        TextRenderer tr = hud();
-        tr.beginRendering(w, h);
-        tr.setColor(1f, 1f, 1f, 1f);
-        tr.draw(text, 20, h - 66);
-        tr.endRendering();
+    private int centeredX(TextRenderer tr, String text, int w) {
+        return (int) ((w - tr.getBounds(text).getWidth()) / 2.0);
+    }
+
+    private int rightAlignedX(TextRenderer tr, String text, int w) {
+        return w - MARGIN - (int) tr.getBounds(text).getWidth();
     }
 
     private void drawRestartPrompt(GameLogic logic, int w, int h) {
