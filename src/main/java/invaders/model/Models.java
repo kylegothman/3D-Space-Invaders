@@ -112,6 +112,24 @@ public final class Models {
         return new VoxelModel(bmp, 0.11f, 0.22f, 0.20f, 0.90f, 0.40f);
     }
 
+    /**
+     * Explosion model shown briefly when an alien is killed.
+     * Scattered orange-yellow voxels radiating outward.
+     */
+    public static VoxelModel alienExplosion() {
+        String[] bmp = {
+            "#..#..#",
+            ".#.#.#.",
+            "..###..",
+            "###.###",
+            "..###..",
+            ".#.#.#.",
+            "#..#..#",
+        };
+        // Warm orange-yellow color (r=1.0, g=0.55, b=0.05)
+        return new VoxelModel(bmp, UNIT, DEPTH, 1.0f, 0.55f, 0.05f);
+    }
+
     public static VoxelModel ufo() {
         String[] bmp = {
             "....#####....",
