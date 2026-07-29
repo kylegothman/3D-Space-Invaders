@@ -38,7 +38,7 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel top, mid, bottom, barrier, ship, shipExplosion;
+    private VoxelModel barrier, ship, shipExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
     // Each enemy bolt shape alternates between two poses instead of a fixed model.
@@ -46,6 +46,11 @@ public class Main implements GLEventListener {
     private int boltFrame = 0;
     private int boltTick = 0;
     private static final int BOLT_FRAME_INTERVAL = 6;
+
+    private VoxelModel[] topFrames, midFrames, bottomFrames;
+    private int flapFrame = 0;
+    private int flapTick = 0;
+    private static final int FLAP_FRAME_INTERVAL = 20;
 
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
@@ -84,18 +89,15 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_COLOR_MATERIAL);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, new float[]{2f, 4f, 5f, 1f}, 0);
 
-        top = Models.invaderTopFrames()[0];
-        mid = Models.invaderMidFrames()[0];
-        bottom = Models.invaderBottomFrames()[0];
+        topFrames = Models.invaderTopFrames();
+        midFrames = Models.invaderMidFrames();
+        bottomFrames = Models.invaderBottomFrames();
         barrier = Models.barrier();
         ship = Models.playerShip();
         shipExplosion = Models.shipExplosion();
 
         // Map Entity.modelId -> renderable model. These strings must match
         // what Enemy/Player/Projectile set as modelId in the game package.
-        modelsById.put("enemy_elite", top);
-        modelsById.put("enemy_scout", mid);
-        modelsById.put("enemy_grunt", bottom);
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
         modelsById.put("bunker", barrier);
@@ -122,6 +124,11 @@ public class Main implements GLEventListener {
             lastFrameNanos = System.nanoTime(); // avoid a huge dt on the first game frame
         }
         if (inMenu) angle += 0.7f;
+
+        if (++flapTick >= FLAP_FRAME_INTERVAL) {
+            flapTick = 0;
+            flapFrame = 1 - flapFrame;
+        }
 
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
@@ -159,7 +166,7 @@ public class Main implements GLEventListener {
     }
 
     private void drawSpinningInvaders(GL2 gl) {
-        VoxelModel[] show = { top, mid, bottom };
+        VoxelModel[] show = { topFrames[flapFrame], midFrames[flapFrame], bottomFrames[flapFrame] };
         for (int i = 0; i < show.length; i++) {
             gl.glPushMatrix();
             gl.glTranslatef((i - 1) * 2.6f, -0.2f, 0f);
@@ -178,6 +185,12 @@ public class Main implements GLEventListener {
                 model = crossBoltFrames[boltFrame];
             } else if (e.modelId.equals("enemy_bolt_zigzag")) {
                 model = zigzagBoltFrames[boltFrame];
+            } else if (e.modelId.equals("enemy_elite")) {
+                model = topFrames[flapFrame];
+            } else if (e.modelId.equals("enemy_scout")) {
+                model = midFrames[flapFrame];
+            } else if (e.modelId.equals("enemy_grunt")) {
+                model = bottomFrames[flapFrame];
             } else if (e.modelId.equals("player_ship") && !e.alive) {
                 model = shipExplosion;
             } else {
