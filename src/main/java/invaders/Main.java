@@ -15,6 +15,7 @@ import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
+import invaders.game.Enemy;
 import invaders.game.Entity;
 import invaders.game.GameLogic;
 import invaders.model.Models;
@@ -34,7 +35,7 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel barrier, ship, shipExplosion;
+    private VoxelModel barrier, ship, shipExplosion, alienExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
     // Each enemy bolt shape alternates between two poses instead of a fixed model.
@@ -79,21 +80,21 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_LIGHTING);
         gl.glEnable(GL2.GL_LIGHT0);
         gl.glEnable(GL2.GL_COLOR_MATERIAL);
-        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, new float[]{2f, 4f, 5f, 1f}, 0);
+        // NOTE: GL_LIGHT0 position is now updated every frame in display()
+        // to create a dynamic sweeping + pulsing effect.
 
-        topFrames = Models.invaderTopFrames();
-        midFrames = Models.invaderMidFrames();
+        topFrames    = Models.invaderTopFrames();
+        midFrames    = Models.invaderMidFrames();
         bottomFrames = Models.invaderBottomFrames();
-        barrier = Models.barrier();
-        ship = Models.playerShip();
-        shipExplosion = Models.shipExplosion();
+        barrier      = Models.barrier();
+        ship         = Models.playerShip();
+        shipExplosion  = Models.shipExplosion();
+        alienExplosion = Models.alienExplosion();
 
-        // Map Entity.modelId -> renderable model. These strings must match
-        // what Enemy/Player/Projectile set as modelId in the game package.
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
         modelsById.put("bunker", barrier);
-        crossBoltFrames = Models.alienBoltCross();
+        crossBoltFrames  = Models.alienBoltCross();
         zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
@@ -112,7 +113,7 @@ public class Main implements GLEventListener {
 
         if (inMenu && input.consumeStart()) {
             inMenu = false;
-            lastFrameNanos = System.nanoTime(); // avoid a huge dt on the first game frame
+            lastFrameNanos = System.nanoTime();
         }
         if (inMenu) angle += 0.7f;
 
@@ -120,6 +121,20 @@ public class Main implements GLEventListener {
             flapTick = 0;
             flapFrame = 1 - flapFrame;
         }
+
+        // --- Dynamic light: update every frame ---
+        // Sweep: light position oscillates left/right across the scene.
+        // Pulse: diffuse intensity breathes in and out.
+        double t = System.currentTimeMillis() / 1000.0;
+        float sweep = (float) Math.sin(t * 0.7) * 6f;          // ±6 units horizontal sweep
+        float pulse = 0.65f + 0.35f * (float) Math.sin(t * 1.8); // intensity 0.30 – 1.00
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION,
+                new float[]{ sweep, 4f, 5f, 1f }, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE,
+                new float[]{ pulse, pulse, pulse, 1f }, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR,
+                new float[]{ pulse * 0.5f, pulse * 0.5f, pulse * 0.5f, 1f }, 0);
+        // --- End dynamic light ---
 
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
@@ -177,11 +192,24 @@ public class Main implements GLEventListener {
             } else if (e.modelId.equals("enemy_bolt_zigzag")) {
                 model = zigzagBoltFrames[boltFrame];
             } else if (e.modelId.equals("enemy_elite")) {
-                model = topFrames[flapFrame];
+                // Show explosion if the enemy is dead but timer is still running
+                if (e instanceof Enemy && !e.alive) {
+                    model = alienExplosion;
+                } else {
+                    model = topFrames[flapFrame];
+                }
             } else if (e.modelId.equals("enemy_scout")) {
-                model = midFrames[flapFrame];
+                if (e instanceof Enemy && !e.alive) {
+                    model = alienExplosion;
+                } else {
+                    model = midFrames[flapFrame];
+                }
             } else if (e.modelId.equals("enemy_grunt")) {
-                model = bottomFrames[flapFrame];
+                if (e instanceof Enemy && !e.alive) {
+                    model = alienExplosion;
+                } else {
+                    model = bottomFrames[flapFrame];
+                }
             } else if (e.modelId.equals("player_ship") && !e.alive) {
                 model = shipExplosion;
             } else {

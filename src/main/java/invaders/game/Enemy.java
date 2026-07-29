@@ -11,6 +11,14 @@ public class Enemy extends Entity {
     public final Type type;
     public final int row, col; // formation coordinates, used for movement & scoring patterns
 
+    /**
+     * Frames remaining to display the death explosion before this enemy
+     * is fully removed from the render list. Set to DEATH_DISPLAY_FRAMES
+     * when the enemy is killed; counts down each game step.
+     */
+    public int deathTimer = 0;
+    public static final int DEATH_DISPLAY_FRAMES = 30; // ~0.5 s at 60 fps
+
     public Enemy(float x, float y, float z, Type type, int row, int col) {
         super(x, y, z);
         this.type = type;
