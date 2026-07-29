@@ -20,10 +20,12 @@ public class GameLogic {
     private static final float PROJECTILE_Z_MIN = -20f;
     private static final float PROJECTILE_Z_MAX = 20f;
 
-    // Upper bound on buffered frame time. Public so callers (e.g. Main) can
-    // clamp the raw frame dt to the same value before it ever reaches
-    // update(), instead of keeping a second hardcoded copy of this number.
+    // Upper bound on buffered frame time, so a long stall (window drag,
+    // breakpoint) never causes a huge burst of catch-up simulation steps.
     public static final float MAX_ACCUMULATED_DT = 0.25f;
+
+    public static final int MAX_WAVES = 3;
+    private static final float WAVE_SPEED_STEP = 0.35f;
 
     // Bunkers sit between the formation's danger line and the player, so
     // they naturally get bypassed once enemies cross ENEMY_DANGER_Z.
@@ -40,6 +42,7 @@ public class GameLogic {
 
     private final InputSource input;
     private float accumulator = 0f;
+    private int wave = 1;
 
     public GameLogic(InputSource input) {
         this.input = input;
@@ -54,7 +57,7 @@ public class GameLogic {
                 /* spacingX */ 2f, /* spacingZ */ 1.5f,
                 /* originX */ -7f, /* originY */ 0f, /* originZ */ -12f,
                 /* fieldHalfWidth */ 9f,
-                /* baseSpeed */ 1.5f,
+                /* baseSpeed */ 1.5f * (1f + WAVE_SPEED_STEP * (wave - 1)),
                 /* dropDistance */ 0.6f);
     }
 
@@ -109,8 +112,24 @@ public class GameLogic {
         } else if (formation.anyReached(ENEMY_DANGER_Z)) {
             score.setLost();
         } else if (result.formationCleared) {
-            score.setWon();
+            if (wave < MAX_WAVES) {
+                startNextWave();
+            } else {
+                score.setWon();
+            }
         }
+    }
+
+    // Bunkers deliberately keep their damage between waves, like the
+    // original arcade game.
+    private void startNextWave() {
+        wave++;
+        formation = buildFormation();
+        projectiles.clear();
+    }
+
+    public int getWave() {
+        return wave;
     }
 
     private void pollInput() {
@@ -133,6 +152,7 @@ public class GameLogic {
     }
 
     public void restart() {
+        wave = 1;
         player = new Player(0f, 0f, PLAYER_Z);
         formation = buildFormation();
         buildBunkers();

@@ -1,7 +1,5 @@
 package invaders;
 
-import java.awt.Color;
-import java.awt.Font;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,9 +14,7 @@ import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
-import com.jogamp.opengl.util.awt.TextRenderer;
 
-import invaders.game.Bunker;
 import invaders.game.Entity;
 import invaders.game.GameLogic;
 import invaders.model.Models;
@@ -54,10 +50,6 @@ public class Main implements GLEventListener {
 
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
-
-    // Separate from HudRenderer -- this draws small labels anchored to a
-    // 3D world position (bunker lives), not the fixed screen-space HUD.
-    private TextRenderer bunkerLabelRenderer;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -105,7 +97,6 @@ public class Main implements GLEventListener {
         zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
-        bunkerLabelRenderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 36));
     }
 
     @Override
@@ -143,7 +134,7 @@ public class Main implements GLEventListener {
             long now = System.nanoTime();
             float dt = (now - lastFrameNanos) / 1_000_000_000f;
             lastFrameNanos = now;
-            gameLogic.update(Math.min(dt, Config.MAX_FRAME_DT));
+            gameLogic.update(Math.min(dt, GameLogic.MAX_ACCUMULATED_DT));
 
             if (++boltTick >= BOLT_FRAME_INTERVAL) {
                 boltTick = 0;
@@ -204,20 +195,6 @@ public class Main implements GLEventListener {
             model.draw(gl);
             gl.glPopMatrix();
         }
-
-        drawBunkerLivesLabels();
-    }
-
-    //draw each alive bunker's remaining-lives
-    //number as text anchored just above it.
-    private void drawBunkerLivesLabels() {
-        bunkerLabelRenderer.begin3DRendering();
-        bunkerLabelRenderer.setColor(Color.WHITE);
-        for (Bunker b : gameLogic.bunkers) {
-            if (!b.alive) continue;
-            bunkerLabelRenderer.draw3D(b.livesLabel, b.x, b.y - b.halfHeight - 0.5f, b.z, 0.01f);
-        }
-        bunkerLabelRenderer.end3DRendering();
     }
 
     @Override
