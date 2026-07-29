@@ -200,7 +200,7 @@ public class Main implements GLEventListener {
             gl.glPushMatrix();
             gl.glTranslatef(e.x, e.y, e.z);
             if (isBolt) gl.glRotatef(90f, 1f, 0f, 0f);
-            if (model == ship) gl.glRotatef(-45f, 1f, 0f, 0f);
+            if (e.modelId.equals("player_ship")) gl.glRotatef(-45f, 1f, 0f, 0f);
             model.draw(gl);
             gl.glPopMatrix();
         }
