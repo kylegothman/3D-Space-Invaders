@@ -9,7 +9,7 @@ public class Enemy extends Entity {
     }
 
     public final Type type;
-    public final int row, col; // formation coordinates, used for movement & scoring patterns
+    public final int row, col;
 
     /**
      * Frames remaining to display the death explosion before this enemy

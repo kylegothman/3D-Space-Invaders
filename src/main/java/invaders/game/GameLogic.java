@@ -19,7 +19,6 @@ public class GameLogic {
     private static final float PROJECTILE_Z_MAX = 20f;
 
     public static final float MAX_ACCUMULATED_DT = 0.25f;
-
     public static final int MAX_WAVES = 3;
     private static final float WAVE_SPEED_STEP = 0.35f;
 
@@ -47,12 +46,12 @@ public class GameLogic {
 
     private EnemyFormation buildFormation() {
         return new EnemyFormation(
-                /* rows */ 4, /* cols */ 8,
-                /* spacingX */ 2f, /* spacingZ */ 1.5f,
-                /* originX */ -7f, /* originY */ 0f, /* originZ */ -12f,
-                /* fieldHalfWidth */ 9f,
-                /* baseSpeed */ 1.5f * (1f + WAVE_SPEED_STEP * (wave - 1)),
-                /* dropDistance */ 0.6f);
+                4, 8,
+                2f, 1.5f,
+                -7f, 0f, -12f,
+                9f,
+                1.5f * (1f + WAVE_SPEED_STEP * (wave - 1)),
+                0.6f);
     }
 
     private void buildBunkers() {
@@ -65,9 +64,7 @@ public class GameLogic {
 
     public void update(float frameDeltaSeconds) {
         if (score.getState() != ScoreManager.State.PLAYING) {
-            if (input.isRestartPressed()) {
-                restart();
-            }
+            if (input.isRestartPressed()) restart();
             return;
         }
 
@@ -83,25 +80,18 @@ public class GameLogic {
     private void step(float dt) {
         pollInput();
 
-        List<Projectile> newShots = player.tick(dt);
-        projectiles.addAll(newShots);
+        projectiles.addAll(player.tick(dt));
+        projectiles.addAll(formation.update(dt));
 
-        List<Projectile> enemyShots = formation.update(dt);
-        projectiles.addAll(enemyShots);
-
-        for (Projectile p : projectiles) {
-            p.update(dt);
-        }
+        for (Projectile p : projectiles) p.update(dt);
 
         CollisionSystem.CollisionResult result =
                 collisions.resolve(player, formation, bunkers, projectiles);
         if (result.scoreGained > 0) score.addScore(result.scoreGained);
 
-        // Tick down death timers for recently-killed enemies.
+        // Tick down death-explosion timers for recently killed enemies.
         for (Enemy e : formation.enemies) {
-            if (!e.alive && e.deathTimer > 0) {
-                e.deathTimer--;
-            }
+            if (!e.alive && e.deathTimer > 0) e.deathTimer--;
         }
 
         collisions.cullProjectiles(projectiles, PROJECTILE_Z_MIN, PROJECTILE_Z_MAX);
@@ -111,11 +101,8 @@ public class GameLogic {
         } else if (formation.anyReached(ENEMY_DANGER_Z)) {
             score.setLost();
         } else if (result.formationCleared) {
-            if (wave < MAX_WAVES) {
-                startNextWave();
-            } else {
-                score.setWon();
-            }
+            if (wave < MAX_WAVES) startNextWave();
+            else score.setWon();
         }
     }
 
@@ -125,9 +112,7 @@ public class GameLogic {
         projectiles.clear();
     }
 
-    public int getWave() {
-        return wave;
-    }
+    public int getWave() { return wave; }
 
     private void pollInput() {
         player.moveLeft  = input.isLeftPressed();
@@ -141,9 +126,8 @@ public class GameLogic {
 
     public List<Entity> getRenderables() {
         List<Entity> all = new ArrayList<>();
-        // Player is always rendered (shows wreckage when dead)
         all.add(player);
-        // Include enemies that are alive OR still showing their death explosion
+        // Include enemies that are alive OR still showing death explosion
         for (Enemy e : formation.enemies) {
             if (e.alive || e.deathTimer > 0) all.add(e);
         }
