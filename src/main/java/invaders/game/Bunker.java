@@ -6,8 +6,6 @@ public class Bunker extends Entity {
 
     public int lives = MAX_LIVES;
 
-    public String livesLabel = String.valueOf(MAX_LIVES);
-
     public Bunker(float x, float y, float z) {
         super(x, y, z);
         this.modelId = "bunker";
@@ -24,6 +22,5 @@ public class Bunker extends Entity {
             lives = 0;
             alive = false;
         }
-        livesLabel = String.valueOf(lives);
     }
 }
