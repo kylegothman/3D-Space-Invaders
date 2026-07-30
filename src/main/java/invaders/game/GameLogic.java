@@ -18,18 +18,13 @@ public class GameLogic {
     private static final float PROJECTILE_Z_MIN = -20f;
     private static final float PROJECTILE_Z_MAX = 20f;
 
-    // Upper bound on buffered frame time, so a long stall (window drag,
-    // breakpoint) never causes a huge burst of catch-up simulation steps.
     public static final float MAX_ACCUMULATED_DT = 0.25f;
-
     public static final int MAX_WAVES = 3;
     private static final float WAVE_SPEED_STEP = 0.35f;
 
-    // Bunkers sit between the formation's danger line and the player, so
-    // they naturally get bypassed once enemies cross ENEMY_DANGER_Z.
     private static final int BUNKER_COUNT = 4;
     private static final float BUNKER_Z = 4.5f;
-    private static final float BUNKER_SPACING_X = 3.0f; // gaps between bunkers
+    private static final float BUNKER_SPACING_X = 3.0f;
 
     public Player player;
     public EnemyFormation formation;
@@ -51,12 +46,12 @@ public class GameLogic {
 
     private EnemyFormation buildFormation() {
         return new EnemyFormation(
-                /* rows */ 4, /* cols */ 8,
-                /* spacingX */ 2f, /* spacingZ */ 1.5f,
-                /* originX */ -7f, /* originY */ 0f, /* originZ */ -12f,
-                /* fieldHalfWidth */ 9f,
-                /* baseSpeed */ 1.5f * (1f + WAVE_SPEED_STEP * (wave - 1)),
-                /* dropDistance */ 0.6f);
+                4, 8,
+                2f, 1.5f,
+                -7f, 0f, -12f,
+                9f,
+                1.5f * (1f + WAVE_SPEED_STEP * (wave - 1)),
+                0.6f);
     }
 
     private void buildBunkers() {
@@ -69,11 +64,7 @@ public class GameLogic {
 
     public void update(float frameDeltaSeconds) {
         if (score.getState() != ScoreManager.State.PLAYING) {
-            // Game is over (won or lost, e.g. player was hit 3 times and ran
-            // out of lives) - offer the player the option to restart.
-            if (input.isRestartPressed()) {
-                restart();
-            }
+            if (input.isRestartPressed()) restart();
             return;
         }
 
@@ -89,19 +80,19 @@ public class GameLogic {
     private void step(float dt) {
         pollInput();
 
-        List<Projectile> newShots = player.tick(dt);
-        projectiles.addAll(newShots);
+        projectiles.addAll(player.tick(dt));
+        projectiles.addAll(formation.update(dt));
 
-        List<Projectile> enemyShots = formation.update(dt);
-        projectiles.addAll(enemyShots);
-
-        for (Projectile p : projectiles) {
-            p.update(dt);
-        }
+        for (Projectile p : projectiles) p.update(dt);
 
         CollisionSystem.CollisionResult result =
                 collisions.resolve(player, formation, bunkers, projectiles);
         if (result.scoreGained > 0) score.addScore(result.scoreGained);
+
+        // Tick down death-explosion timers for recently killed enemies.
+        for (Enemy e : formation.enemies) {
+            if (!e.alive && e.deathTimer > 0) e.deathTimer--;
+        }
 
         collisions.cullProjectiles(projectiles, PROJECTILE_Z_MIN, PROJECTILE_Z_MAX);
 
@@ -110,25 +101,18 @@ public class GameLogic {
         } else if (formation.anyReached(ENEMY_DANGER_Z)) {
             score.setLost();
         } else if (result.formationCleared) {
-            if (wave < MAX_WAVES) {
-                startNextWave();
-            } else {
-                score.setWon();
-            }
+            if (wave < MAX_WAVES) startNextWave();
+            else score.setWon();
         }
     }
 
-    // Bunkers deliberately keep their damage between waves, like the
-    // original arcade game.
     private void startNextWave() {
         wave++;
         formation = buildFormation();
         projectiles.clear();
     }
 
-    public int getWave() {
-        return wave;
-    }
+    public int getWave() { return wave; }
 
     private void pollInput() {
         player.moveLeft  = input.isLeftPressed();
@@ -142,8 +126,11 @@ public class GameLogic {
 
     public List<Entity> getRenderables() {
         List<Entity> all = new ArrayList<>();
-        all.add(player); // rendered even when dead, so Main can show wreckage in its place
-        for (Enemy e : formation.enemies) if (e.alive) all.add(e);
+        all.add(player);
+        // Include enemies that are alive OR still showing death explosion
+        for (Enemy e : formation.enemies) {
+            if (e.alive || e.deathTimer > 0) all.add(e);
+        }
         for (Bunker b : bunkers) if (b.alive) all.add(b);
         for (Projectile p : projectiles) if (p.alive) all.add(p);
         return all;

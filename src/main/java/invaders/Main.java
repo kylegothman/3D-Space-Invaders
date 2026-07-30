@@ -16,6 +16,7 @@ import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
 import invaders.game.Bunker;
+import invaders.game.Enemy;
 import invaders.game.Entity;
 import invaders.game.GameLogic;
 import invaders.model.Models;
@@ -38,7 +39,6 @@ public class Main implements GLEventListener {
     private VoxelModel ship, shipExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
-    // Each enemy bolt shape alternates between two poses instead of a fixed model.
     private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
     private int boltFrame = 0;
     private int boltTick = 0;
@@ -80,10 +80,10 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_LIGHTING);
         gl.glEnable(GL2.GL_LIGHT0);
         gl.glEnable(GL2.GL_COLOR_MATERIAL);
-        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, new float[]{2f, 4f, 5f, 1f}, 0);
+        // GL_LIGHT0 position/intensity is updated every frame in display()
 
-        topFrames = Models.invaderTopFrames();
-        midFrames = Models.invaderMidFrames();
+        topFrames    = Models.invaderTopFrames();
+        midFrames    = Models.invaderMidFrames();
         bottomFrames = Models.invaderBottomFrames();
         ship = Models.playerShip();
         shipExplosion = Models.shipExplosion();
@@ -113,7 +113,7 @@ public class Main implements GLEventListener {
 
         if (inMenu && input.consumeStart()) {
             inMenu = false;
-            lastFrameNanos = System.nanoTime(); // avoid a huge dt on the first game frame
+            lastFrameNanos = System.nanoTime();
         }
         if (inMenu) angle += 0.7f;
 
@@ -121,6 +121,17 @@ public class Main implements GLEventListener {
             flapTick = 0;
             flapFrame = 1 - flapFrame;
         }
+
+        // Dynamic light: sweep position left/right + pulse intensity each frame
+        double t = System.currentTimeMillis() / 1000.0;
+        float sweep = (float) Math.sin(t * 0.7) * 6f;
+        float pulse = 0.65f + 0.35f * (float) Math.sin(t * 1.8);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION,
+                new float[]{ sweep, 4f, 5f, 1f }, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE,
+                new float[]{ pulse, pulse, pulse, 1f }, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR,
+                new float[]{ pulse * 0.5f, pulse * 0.5f, pulse * 0.5f, 1f }, 0);
 
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
@@ -144,7 +155,6 @@ public class Main implements GLEventListener {
 
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
             drawGameplay(gl);
-
             hud.renderHud(gameLogic, width, height);
         }
     }
@@ -172,11 +182,15 @@ public class Main implements GLEventListener {
         for (Entity e : gameLogic.getRenderables()) {
             boolean isBolt = e.modelId.equals("enemy_bolt_cross") || e.modelId.equals("enemy_bolt_zigzag")
                     || e.modelId.equals("player_bolt");
+
             VoxelModel model;
             if (e.modelId.equals("enemy_bolt_cross")) {
                 model = crossBoltFrames[boltFrame];
             } else if (e.modelId.equals("enemy_bolt_zigzag")) {
                 model = zigzagBoltFrames[boltFrame];
+            } else if (e instanceof Enemy && !e.alive) {
+                // Any dead enemy type -> show explosion
+                model = alienExplosion;
             } else if (e.modelId.equals("enemy_elite")) {
                 model = topFrames[flapFrame];
             } else if (e.modelId.equals("enemy_scout")) {
@@ -190,6 +204,7 @@ public class Main implements GLEventListener {
             } else {
                 model = modelsById.get(e.modelId);
             }
+
             if (model == null) continue;
             gl.glPushMatrix();
             gl.glTranslatef(e.x, e.y, e.z);
