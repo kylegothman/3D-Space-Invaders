@@ -24,6 +24,13 @@ public class EnemyFormation {
     // barrier column, punches one hole, and every later shot just passes
     // through that hole instead of spreading damage across the bunker.
     private final float shotXJitter = 0.35f;
+
+    // Same idea on the y axis. Projectile never sets vy, so a shot's y is
+    // fixed for its whole flight -- without this jitter every enemy shot
+    // spawns at the same y and Bunker.hitAt() always resolves to the same
+    // row, carving one horizontal stripe instead of spreading damage across
+    // the bunker face.
+    private final float shotYJitter = 0.3f;
     
     public EnemyFormation(int rows, int cols, float spacingX, float spacingZ,
                            float originX, float originY, float originZ,
@@ -106,7 +113,8 @@ public class EnemyFormation {
             Enemy shooter = pickRandomShooter();
             if (shooter != null) {
                 float jitterX = (rng.nextFloat() * 2f - 1f) * shotXJitter;
-                shots.add(Projectile.enemyShot(shooter.x + jitterX, shooter.y, shooter.z, shooter.type));
+                float jitterY = (rng.nextFloat() * 2f - 1f) * shotYJitter;
+                shots.add(Projectile.enemyShot(shooter.x + jitterX, shooter.y + jitterY, shooter.z, shooter.type));
             }
             fireTimer = nextFireDelay();
         }
