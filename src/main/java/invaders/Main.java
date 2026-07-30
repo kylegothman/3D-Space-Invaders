@@ -15,6 +15,7 @@ import com.jogamp.opengl.awt.GLJPanel;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
+import invaders.game.Bunker;
 import invaders.game.Enemy;
 import invaders.game.Entity;
 import invaders.game.GameLogic;
@@ -35,7 +36,7 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel barrier, ship, shipExplosion, alienExplosion;
+    private VoxelModel ship, shipExplosion, alienExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
     private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
@@ -84,15 +85,17 @@ public class Main implements GLEventListener {
         topFrames    = Models.invaderTopFrames();
         midFrames    = Models.invaderMidFrames();
         bottomFrames = Models.invaderBottomFrames();
-        barrier        = Models.barrier();
-        ship           = Models.playerShip();
-        shipExplosion  = Models.shipExplosion();
+        ship = Models.playerShip();
+        shipExplosion = Models.shipExplosion();
         alienExplosion = Models.alienExplosion();
 
+        // Map Entity.modelId -> renderable model. These strings must match
+        // what Enemy/Player/Projectile set as modelId in the game package.
+        // ("bunker" is intentionally absent — each Bunker owns and renders
+        // its own damaged voxel grid instead of a shared model.)
         modelsById.put("player_ship", ship);
         modelsById.put("player_bolt", Models.playerBolt());
-        modelsById.put("bunker", barrier);
-        crossBoltFrames  = Models.alienBoltCross();
+        crossBoltFrames = Models.alienBoltCross();
         zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
@@ -197,6 +200,8 @@ public class Main implements GLEventListener {
                 model = bottomFrames[flapFrame];
             } else if (e.modelId.equals("player_ship") && !e.alive) {
                 model = shipExplosion;
+            } else if (e instanceof Bunker b) {
+                model = b.model;
             } else {
                 model = modelsById.get(e.modelId);
             }

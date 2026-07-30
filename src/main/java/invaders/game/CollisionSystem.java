@@ -51,8 +51,13 @@ public class CollisionSystem {
     private boolean hitsBunker(Projectile p, List<Bunker> bunkers) {
         for (Bunker b : bunkers) {
             if (!b.alive) continue;
-            if (p.intersects(b)) {
-                b.hit();
+            // Broad-phase: is the shot even inside the bunker's bounding box?
+            if (!p.intersects(b)) continue;
+            // Narrow-phase: does the exact impact point land on a still-solid
+            // voxel, or has that spot already been shot away? Only a solid
+            // hit destroys the local pixels and absorbs the shot; a hit on an
+            // existing hole lets the projectile continue on its way.
+            if (b.hitAt(p.x, p.y)) {
                 p.alive = false;
                 return true;
             }
