@@ -36,7 +36,7 @@ public class Main implements GLEventListener {
     private boolean inMenu = true;
     private int width = Config.WINDOW_WIDTH, height = Config.WINDOW_HEIGHT;
 
-    private VoxelModel ship, shipExplosion;
+    private VoxelModel ship, shipExplosion, alienExplosion;
     private final Map<String, VoxelModel> modelsById = new HashMap<>();
 
     private VoxelModel[] crossBoltFrames, zigzagBoltFrames;
@@ -87,6 +87,7 @@ public class Main implements GLEventListener {
         bottomFrames = Models.invaderBottomFrames();
         ship = Models.playerShip();
         shipExplosion = Models.shipExplosion();
+        alienExplosion = Models.alienExplosion();
 
         // Map Entity.modelId -> renderable model. These strings must match
         // what Enemy/Player/Projectile set as modelId in the game package.

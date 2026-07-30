@@ -11,25 +11,16 @@ public class EnemyFormation {
     private final float fieldHalfWidth;
     private final float dropDistance;
     private final float baseSpeed;
-    private float currentDirection = 1f; // 1 = right, -1 = left
+    private float currentDirection = 1f;
     private int dropCount = 0;
     private final Random rng = new Random();
 
     private float fireTimer = 0f;
-    private final float fireIntervalMin = 0.36f;  // was 0.4f  (10% faster)
-    private final float fireIntervalMax = 1.08f;  // was 1.2f  (10% faster)
+    private final float fireIntervalMin = 0.36f;
+    private final float fireIntervalMax = 1.08f;
 
-    // How far (world units) a shot's spawn x can drift from the shooter's
-    // exact x. Without this, every shot from a given lane lands on the same
-    // barrier column, punches one hole, and every later shot just passes
-    // through that hole instead of spreading damage across the bunker.
     private final float shotXJitter = 0.35f;
 
-    // Same idea on the y axis. Projectile never sets vy, so a shot's y is
-    // fixed for its whole flight -- without this jitter every enemy shot
-    // spawns at the same y and Bunker.hitAt() always resolves to the same
-    // row, carving one horizontal stripe instead of spreading damage across
-    // the bunker face.
     private final float shotYJitter = 0.3f;
     
     public EnemyFormation(int rows, int cols, float spacingX, float spacingZ,
@@ -56,9 +47,6 @@ public class EnemyFormation {
         return Enemy.Type.GRUNT;
     }
 
-    // Speed scales up as the formation thins out and as it advances toward
-    // the player -- classic difficulty ramp. Capped so it stays playable
-    // even in a long, punishing wave.
     private static final float MAX_SPEED_MULTIPLIER = 3.0f;
 
     private float currentSpeed() {
@@ -68,12 +56,9 @@ public class EnemyFormation {
         float countMultiplier = 1f;
         if (total > 0) {
             float ratio = (float) aliveCount / total;
-            // as ratio -> 0, this multiplier grows up to ~3x
             countMultiplier = 1f + 2f * (1f - ratio);
         }
-        // Give the formation a few free bounces before the advance ramp
-        // kicks in, so wave 1 doesn't speed up immediately just from
-        // hitting the field edges early.
+
         int rampedDrops = Math.max(0, dropCount - 3);
         float advanceMultiplier = 1f + 0.08f * (rampedDrops / 2);
 
@@ -85,7 +70,6 @@ public class EnemyFormation {
         float speed = currentSpeed();
         boolean hitEdge = false;
 
-        // check if moving would exceed the field bound
         for (Enemy e : enemies) {
             if (!e.alive) continue;
             float nextX = e.x + currentDirection * speed * dt;
@@ -137,7 +121,6 @@ public class EnemyFormation {
         return true;
     }
 
-    // True if any living enemy has reached or passed the given z threshold (near player).
     public boolean anyReached(float zThreshold) {
         for (Enemy e : enemies) {
             if (e.alive && e.z >= zThreshold) return true;
