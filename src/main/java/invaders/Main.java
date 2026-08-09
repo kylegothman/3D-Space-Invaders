@@ -52,6 +52,9 @@ public class Main implements GLEventListener {
     private GameLogic gameLogic;
     private long lastFrameNanos = 0L;
 
+    private final Starfield starfield = new Starfield();
+    private long fxLastNanos = 0L;
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             GLCapabilities caps = new GLCapabilities(GLProfile.get(GLProfile.GL2));
@@ -99,6 +102,7 @@ public class Main implements GLEventListener {
         zigzagBoltFrames = Models.alienBoltZigzag();
 
         gameLogic = new GameLogic(input);
+        fxLastNanos = System.nanoTime();
     }
 
     @Override
@@ -123,16 +127,23 @@ public class Main implements GLEventListener {
             flapFrame = 1 - flapFrame;
         }
 
-        // Dynamic light: sweep position left/right + pulse intensity each frame
+        long fxNow = System.nanoTime();
+        float fxDt = Math.min((fxNow - fxLastNanos) / 1_000_000_000f, 0.1f);
+        fxLastNanos = fxNow;
+        starfield.update(fxDt);
+
+        // Dynamic light: position sweeps left/right, and brightness flickers
+        // subtly with the star traffic streaming past the scene.
         double t = System.currentTimeMillis() / 1000.0;
         float sweep = (float) Math.sin(t * 0.7) * 6f;
-        float pulse = 0.65f + 0.35f * (float) Math.sin(t * 1.8);
+        float pulse = 0.825f + 0.175f * (float) Math.sin(t * 1.8);
+        float lit = Math.min(1f, pulse + starfield.brightnessBoost());
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION,
                 new float[]{ sweep, 4f, 5f, 1f }, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE,
-                new float[]{ pulse, pulse, pulse, 1f }, 0);
+                new float[]{ lit, lit, lit, 1f }, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR,
-                new float[]{ pulse * 0.5f, pulse * 0.5f, pulse * 0.5f, 1f }, 0);
+                new float[]{ lit * 0.5f, lit * 0.5f, lit * 0.5f, 1f }, 0);
 
         applyProjection(gl);
         gl.glClearColor(0.03f, 0.03f, 0.06f, 1f);
@@ -141,6 +152,7 @@ public class Main implements GLEventListener {
 
         if (inMenu) {
             glu.gluLookAt(0, 0.5, 8.5, 0, 0.3, 0, 0, 1, 0);
+            starfield.draw(gl);
             drawSpinningInvaders(gl);
             menu.renderMenu(width, height);
         } else {
@@ -155,6 +167,7 @@ public class Main implements GLEventListener {
             }
 
             glu.gluLookAt(0, 2.5, 15.5, 0, 0.4, 0, 0, 1, 0);
+            starfield.draw(gl);
             drawGameplay(gl);
             hud.renderHud(gameLogic, width, height);
         }
